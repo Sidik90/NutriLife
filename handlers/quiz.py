@@ -1,9 +1,9 @@
-from aiogram import Router
-from aiogram import types
+from aiogram import Router, F
+from aiogram.types import CallbackQuery, FSInputFile
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-from keyboards.inline import get_main_menu, get_quiz_options
-from aiogram.types import FSInputFile
+from keyboards.inline import get_quiz_options, get_main_menu
+from utils.logger import logger
 
 router = Router()
 
@@ -21,41 +21,57 @@ QUIZ_QUESTIONS = [
 ]
 
 # Обработчик выбора "Сыграть в квиз"
-@router.callback_query(lambda c: c.data == "quiz")
-async def start_quiz(callback_query: types.CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "quiz")
+async def start_quiz(callback_query: CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    logger.info(f"Пользователь {user_id} начал квиз")
     await state.update_data(question_index=0, score=0)
     question = QUIZ_QUESTIONS[0]
-    await callback_query.message.answer_photo(photo=FSInputFile(question["image_1"]), caption=question["text"], reply_markup=get_quiz_options(0))
-    await callback_query.message.answer_photo(photo=FSInputFile(question["image_2"]))
+    try:
+        await callback_query.message.bot.send_photo(chat_id=user_id, photo=FSInputFile(question["image_1"]), caption=question["text"], reply_markup=get_quiz_options(0))
+        await callback_query.message.bot.send_photo(chat_id=user_id, photo=FSInputFile(question["image_2"]))
+    except FileNotFoundError:
+        await callback_query.message.bot.send_message(chat_id=user_id, text=f"{question['text']} (Изображения не найдены, используйте воображение!)", reply_markup=get_quiz_options(0))
     await state.set_state(QuizStates.QUESTION)
-    await callback_query.message.delete()
     await callback_query.answer()
 
+
 # Обработчик ответов на вопросы квиза
-@router.callback_query(QuizStates.QUESTION, lambda c: c.data.startswith("quiz_"))
-async def process_quiz_answer(callback_query: types.CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    question_index = user_data["question_index"]
-    score = user_data["score"]
+@router.callback_query(QuizStates.QUESTION, F.data.startswith("quiz_"))
+async def process_quiz_answer(callback_query: CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    data = await state.get_data()
+    question_index = data.get("question_index", 0)
+    score = data.get("score", 0)
     answer = int(callback_query.data.split("_")[-1])
     correct_answer = QUIZ_QUESTIONS[question_index]["correct"]
 
-
     if answer == correct_answer:
         score += 1
-        await callback_query.message.answer("Правильно! ✅")
+        await callback_query.message.edit_caption(caption="Правильно! ✅")
+        logger.info(f"Пользователь {user_id} ответил правильно на вопрос {question_index + 1}")
     else:
-        await callback_query.message.answer("Неправильно. ❌")
-    await state.update_data(score=score)
+        await callback_query.message.edit_caption(caption="Неправильно. ❌")
+        logger.info(f"Пользователь {user_id} ответил неправильно на вопрос {question_index + 1}")
 
-    if question_index + 1 < len(QUIZ_QUESTIONS):
-        await state.update_data(question_index=question_index + 1)
-        question = QUIZ_QUESTIONS[question_index + 1]
-        await callback_query.message.answer_photo(photo=FSInputFile(question["image_1"]), caption=question["text"], reply_markup=get_quiz_options(question_index + 1))
-        await callback_query.message.answer_photo(photo=FSInputFile(question["image_2"]))
+    question_index += 1
+    await state.update_data(question_index=question_index, score=score)
+
+    if question_index < len(QUIZ_QUESTIONS):
+        question = QUIZ_QUESTIONS[question_index]
+        try:
+            await callback_query.message.bot.send_photo(chat_id=user_id, photo=FSInputFile(question["image_1"]),
+                                                        caption=question["text"],
+                                                        reply_markup=get_quiz_options(question_index))
+            await callback_query.message.bot.send_photo(chat_id=user_id, photo=FSInputFile(question["image_2"]))
+        except FileNotFoundError:
+            await callback_query.message.bot.send_message(chat_id=user_id,
+                                                          text=f"{question['text']} (Изображения не найдены, используйте воображение!)",
+                                                          reply_markup=get_quiz_options(question_index))
     else:
-        result_text = f"Квиз завершен! Ваш результат: {score} из {len(QUIZ_QUESTIONS)}."
-        await callback_query.message.answer(result_text, reply_markup=get_main_menu())
+        await callback_query.message.bot.send_message(chat_id=user_id,
+                                                      text=f"Квиз завершен! Ваш результат: {score}/{len(QUIZ_QUESTIONS)} 🎉",
+                                                      reply_markup=get_main_menu())
+        logger.info(f"Пользователь {user_id} завершил квиз с результатом {score}/{len(QUIZ_QUESTIONS)}")
         await state.clear()
-    await callback_query.message.delete()
     await callback_query.answer()

@@ -1,67 +1,85 @@
 from aiogram import Router, F
-from aiogram import types
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-from keyboards.inline import get_main_menu, get_contact_choice
-from keyboards.reply import get_cancel_keyboard
+from keyboards.inline import get_main_menu, get_contact_choice, get_cancel_keyboard
 from database.db import save_contact
-from config.config import ADMIN_ID
+from utils.logger import logger
 
 router = Router()
 
-# Определение состояний для обратной связи
+# Определение состояний для контактов
 class ContactStates(StatesGroup):
     NAME = State()
     CONTACT_INFO = State()
 
 # Обработчик выбора "Связаться с нами"
-@router.callback_query(lambda c: c.data == "contact")
-async def start_contact(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text("Хотите, чтобы вам перезвонили?", reply_markup=get_contact_choice())
-    await callback_query.answer()
-
-# Обработчик выбора "Нет, просто контакт"
-@router.callback_query(lambda c: c.data == "contact_no")
-async def process_contact_no(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text("Свяжитесь с нами: [Контакт](https://t.me/your_contact_link)", parse_mode="Markdown", reply_markup=get_main_menu())
+@router.callback_query(F.data == "contact")
+async def start_contact(callback_query: CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    logger.info(f"Пользователь {user_id} начал процесс связи")
+    await callback_query.message.edit_text("Хотите, чтобы мы вам перезвонили?", reply_markup=get_contact_choice())
     await callback_query.answer()
 
 # Обработчик выбора "Да, перезвоните"
-@router.callback_query(lambda c: c.data == "contact_yes")
-async def process_contact_yes(callback_query: types.CallbackQuery, state: FSMContext):
-    await callback_query.message.answer("Введите ваше имя:", reply_markup=get_cancel_keyboard())
+@router.callback_query(F.data == "contact_yes")
+async def process_contact_yes(callback_query: CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    logger.info(f"Пользователь {user_id} запросил обратный звонок")
+    await state.update_data(is_callback=True)
+    await callback_query.message.edit_text("Введите ваше имя:", reply_markup=get_cancel_keyboard())
     await state.set_state(ContactStates.NAME)
-    await callback_query.message.delete()
+    await callback_query.answer()
+
+# Обработчик выбора "Нет, просто контакт"
+@router.callback_query(F.data == "contact_no")
+async def process_contact_no(callback_query: CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    logger.info(f"Пользователь {user_id} выбрал просто оставить контакт")
+    await state.update_data(is_callback=False)
+    await callback_query.message.edit_text("Введите ваше имя:", reply_markup=get_cancel_keyboard())
+    await state.set_state(ContactStates.NAME)
     await callback_query.answer()
 
 # Обработчик ввода имени
-@router.message(ContactStates.NAME, F.text == ["Отмена"])
-async def cancel_contact(message: Message, state: FSMContext):
+@router.callback_query(ContactStates.NAME, F.data == "cancel")
+async def cancel_contact(callback_query: CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    logger.info(f"Пользователь {user_id} отменил ввод контакта")
     await state.clear()
-    await message.answer("Запрос отменен.", reply_markup=get_main_menu())
+    await callback_query.message.edit_text("Ввод контакта отменен.", reply_markup=get_main_menu())
+    await callback_query.answer()
 
 @router.message(ContactStates.NAME)
 async def process_name(message: Message, state: FSMContext):
-    await state.update_data(name=message.text)
+    user_id = message.from_user.id
+    name = message.text
+    logger.info(f"Пользователь {user_id} ввел имя: {name}")
+    await state.update_data(name=name)
     await message.answer("Введите ваш номер телефона или email:", reply_markup=get_cancel_keyboard())
     await state.set_state(ContactStates.CONTACT_INFO)
 
 # Обработчик ввода контактной информации
-@router.message(ContactStates.CONTACT_INFO, F.text == ["Отмена"])
-async def cancel_contact_info(message: Message, state: FSMContext):
+@router.callback_query(ContactStates.CONTACT_INFO, F.data == "cancel")
+async def cancel_contact_info(callback_query: CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    logger.info(f"Пользователь {user_id} отменил ввод контактной информации")
     await state.clear()
-    await message.answer("Запрос отменен.", reply_markup=get_main_menu())
+    await callback_query.message.edit_text("Ввод контакта отменен.", reply_markup=get_main_menu())
+    await callback_query.answer()
 
 @router.message(ContactStates.CONTACT_INFO)
 async def process_contact_info(message: Message, state: FSMContext):
-    user_data = await state.get_data()
-    name = user_data["name"]
-    contact_info = message.text
     user_id = message.from_user.id
-    # Сохраняем данные в базу
+    contact_info = message.text
+    data = await state.get_data()
+    name = data.get("name")
+    is_callback = data.get("is_callback", False)
     await save_contact(user_id, name, contact_info)
-    # Отправляем уведомление администратору
-    await message.bot.send_message(chat_id=ADMIN_ID, text=f"Новая заявка на звонок:\nИмя: {name}\nКонтакт: {contact_info}\nID: {user_id}")
-    await message.answer("Спасибо! Мы свяжемся с вами в ближайшее время.", reply_markup=get_main_menu())
+    if is_callback:
+        await message.answer(f"Спасибо, {name}! Мы свяжемся с вами по {contact_info} 📞", reply_markup=get_main_menu())
+        logger.info(f"Пользователь {user_id} оставил заявку на обратный звонок: {contact_info}")
+    else:
+        await message.answer(f"Спасибо, {name}! Ваш контакт {contact_info} сохранен. Свяжитесь с нами через [контакт](https://t.me/K_Marina_KMV) ✉️", parse_mode="Markdown", reply_markup=get_main_menu())
+        logger.info(f"Пользователь {user_id} оставил контакт: {contact_info}")
     await state.clear()
