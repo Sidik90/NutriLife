@@ -37,8 +37,7 @@ async def process_contact_no(callback_query: CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     logger.info(f"Пользователь {user_id} выбрал просто оставить контакт")
     await state.update_data(is_callback=False)
-    await callback_query.message.edit_text("Введите ваше имя:", reply_markup=get_cancel_keyboard())
-    await state.set_state(ContactStates.NAME)
+    await callback_query.answer(f"Свяжитесь с нами через [контакт](https://t.me/K_Marina_KMV) ✉️", parse_mode="Markdown", reply_markup=get_main_menu())
     await callback_query.answer()
 
 # Обработчик ввода имени
@@ -79,7 +78,4 @@ async def process_contact_info(message: Message, state: FSMContext):
     if is_callback:
         await message.answer(f"Спасибо, {name}! Мы свяжемся с вами по {contact_info} 📞", reply_markup=get_main_menu())
         logger.info(f"Пользователь {user_id} оставил заявку на обратный звонок: {contact_info}")
-    else:
-        await message.answer(f"Спасибо, {name}! Ваш контакт {contact_info} сохранен. Свяжитесь с нами через [контакт](https://t.me/K_Marina_KMV) ✉️", parse_mode="Markdown", reply_markup=get_main_menu())
-        logger.info(f"Пользователь {user_id} оставил контакт: {contact_info}")
     await state.clear()

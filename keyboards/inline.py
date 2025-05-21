@@ -6,7 +6,7 @@ def get_main_menu():
         [InlineKeyboardButton(text="Диагностика 🩺", callback_data="diagnostics")],
         [InlineKeyboardButton(text="Сыграть со мной в квиз 🎮", callback_data="quiz"), InlineKeyboardButton(text="Расчет БЖУ 🍎", callback_data="bju_calc")],
         [InlineKeyboardButton(text="Напоминалка ⏰", callback_data="reminder"), InlineKeyboardButton(text="Помощь ❓", callback_data="help")],
-        [InlineKeyboardButton(text="Связаться с нами 📞", callback_data="contact")]
+        [InlineKeyboardButton(text="Записаться на консультацию 📞", callback_data="contact")]
     ])
     return keyboard
 
@@ -14,7 +14,7 @@ def get_main_menu():
 def get_diagnostics_modules():
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="ЖКТ 🍽", callback_data="diag_jkt")],
-        [InlineKeyboardButton(text="Гормоны 🧬", callback_data="diag_hormones")],
+        [InlineKeyboardButton(text="Щитовидная железа 🧬", callback_data="diag_hormones")],
         [InlineKeyboardButton(text="Инсулин 🩸", callback_data="diag_insulin")],
         [InlineKeyboardButton(text="Дефициты 🛡", callback_data="diag_deficiencies")],
         [InlineKeyboardButton(text="Назад 🔙", callback_data="back_to_menu")]
@@ -24,8 +24,10 @@ def get_diagnostics_modules():
 # Клавиатура для ответов "Да/Нет" в диагностике
 def get_yes_no_keyboard(theme, question_id):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Да ✅", callback_data=f"diag_answer_{theme}_{question_id}_yes")],
-        [InlineKeyboardButton(text="Нет ❌", callback_data=f"diag_answer_{theme}_{question_id}_no")]
+        [
+            InlineKeyboardButton(text="Да ✅", callback_data=f"diag_answer_{theme}_{question_id}_yes"),
+            InlineKeyboardButton(text="Нет ❌", callback_data=f"diag_answer_{theme}_{question_id}_no")
+        ]
     ])
     return keyboard
 
@@ -50,7 +52,7 @@ def get_quiz_options(question_id):
 def get_contact_choice():
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Да, перезвоните 📞", callback_data="contact_yes")],
-        [InlineKeyboardButton(text="Нет, просто контакт ✉️", callback_data="contact_no")],
+#       [InlineKeyboardButton(text="Нет, сам контакт ✉️", callback_data="contact_no")],
         [InlineKeyboardButton(text="Назад 🔙", callback_data="back_to_menu")]
     ])
     return keyboard
