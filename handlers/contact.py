@@ -13,12 +13,12 @@ class ContactStates(StatesGroup):
     NAME = State()
     CONTACT_INFO = State()
 
-# Обработчик выбора "Связаться с нами"
+# Обработчик выбора "Записаться на консультацию"
 @router.callback_query(F.data == "contact")
 async def start_contact(callback_query: CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     logger.info(f"Пользователь {user_id} начал процесс связи")
-    await callback_query.message.edit_text("Хотите, чтобы мы вам перезвонили?", reply_markup=get_contact_choice())
+    await callback_query.message.edit_text("Оставьте Ваши данные и мы свяжемся с Вами?", reply_markup=get_contact_choice())
     await callback_query.answer()
 
 # Обработчик выбора "Да, перезвоните"
@@ -29,15 +29,6 @@ async def process_contact_yes(callback_query: CallbackQuery, state: FSMContext):
     await state.update_data(is_callback=True)
     await callback_query.message.edit_text("Введите ваше имя:", reply_markup=get_cancel_keyboard())
     await state.set_state(ContactStates.NAME)
-    await callback_query.answer()
-
-# Обработчик выбора "Нет, просто контакт"
-@router.callback_query(F.data == "contact_no")
-async def process_contact_no(callback_query: CallbackQuery, state: FSMContext):
-    user_id = callback_query.from_user.id
-    logger.info(f"Пользователь {user_id} выбрал просто оставить контакт")
-    await state.update_data(is_callback=False)
-    await callback_query.answer(f"Свяжитесь с нами через [контакт](https://t.me/K_Marina_KMV) ✉️", parse_mode="Markdown", reply_markup=get_main_menu())
     await callback_query.answer()
 
 # Обработчик ввода имени
@@ -55,7 +46,7 @@ async def process_name(message: Message, state: FSMContext):
     name = message.text
     logger.info(f"Пользователь {user_id} ввел имя: {name}")
     await state.update_data(name=name)
-    await message.answer("Введите ваш номер телефона или email:", reply_markup=get_cancel_keyboard())
+    await message.answer("Введите контактный номер телефона или email:", reply_markup=get_cancel_keyboard())
     await state.set_state(ContactStates.CONTACT_INFO)
 
 # Обработчик ввода контактной информации
@@ -76,6 +67,6 @@ async def process_contact_info(message: Message, state: FSMContext):
     is_callback = data.get("is_callback", False)
     await save_contact(user_id, name, contact_info)
     if is_callback:
-        await message.answer(f"Спасибо, {name}! Мы свяжемся с вами по {contact_info} 📞", reply_markup=get_main_menu())
+        await message.answer(f"Спасибо за обращение, {name}! Мы свяжемся с Вами по {contact_info} 📞", reply_markup=get_main_menu())
         logger.info(f"Пользователь {user_id} оставил заявку на обратный звонок: {contact_info}")
     await state.clear()

@@ -7,8 +7,6 @@ from aiogram.fsm.context import FSMContext
 from keyboards.inline import get_yes_no_keyboard, get_diagnostic_result_keyboard, get_diagnostics_modules
 from utils.logger import logger, log_to_db
 
-from project.Bots.NutriLifeBot.keyboards.inline import get_main_menu
-
 router = Router()
 
 # Определение состояний для диагностики
@@ -114,12 +112,4 @@ async def process_diagnostic_answer(callback_query: CallbackQuery, state: FSMCon
         await callback_query.message.bot.send_message(chat_id=user_id, text="Диагностика завершена! Спасибо за ваши ответы. Вы можете записаться на консультацию или вернуться в главное меню.", reply_markup=get_diagnostic_result_keyboard())
         logger.info(f"Пользователь {user_id} завершил диагностику по теме {theme}")
         await state.clear()
-    await callback_query.answer()
-
-# Обработчик записи на консультацию
-@router.callback_query(F.data == "consultation")
-async def process_consultation(callback_query: CallbackQuery):
-    user_id = callback_query.from_user.id
-    logger.info(f"Пользователь {user_id} запросил запись на консультацию из диагностики")
-    await callback_query.message.edit_text("Для записи на консультацию свяжитесь с нами через раздел 'Связаться с нами'.", reply_markup=get_main_menu())
     await callback_query.answer()

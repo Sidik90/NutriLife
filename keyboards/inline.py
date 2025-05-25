@@ -34,7 +34,7 @@ def get_yes_no_keyboard(theme, question_id):
 # Клавиатура после завершения диагностики
 def get_diagnostic_result_keyboard():
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Записаться на консультацию 📅", callback_data="consultation")],
+        [InlineKeyboardButton(text="Записаться на консультацию 📅", callback_data="contact_yes")],
         [InlineKeyboardButton(text="Вернуться в главное меню 🔙", callback_data="back_to_menu")]
     ])
     return keyboard
@@ -52,7 +52,6 @@ def get_quiz_options(question_id):
 def get_contact_choice():
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Да, перезвоните 📞", callback_data="contact_yes")],
-#       [InlineKeyboardButton(text="Нет, сам контакт ✉️", callback_data="contact_no")],
         [InlineKeyboardButton(text="Назад 🔙", callback_data="back_to_menu")]
     ])
     return keyboard
