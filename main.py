@@ -3,16 +3,9 @@ from aiogram import Bot, Dispatcher
 from config.config import BOT_TOKEN
 from database.db import init_db, insert_test_foods
 from handlers import start, main_menu, diagnostics, quiz, reminder, bju_calc, contact, help, admin
-from utils.reminder_scheduler import start_scheduler
 from utils.logger import logger
+from utils.scheduler import check_and_send_reminders, clean_old_reminders_task
 
-# Функция, выполняемая при запуске бота
-async def on_startup(bot: Bot):
-    await init_db()
-    await insert_test_foods()  # Добавляем тестовые данные о продуктах
-    start_scheduler(bot)  # Запускаем планировщик напоминаний
-    logger.info("Бот запущен!")
-    print("Бот запущен!")
 
 # Основная функция для запуска бота
 async def main():
@@ -30,8 +23,26 @@ async def main():
         help.router,
         admin.router
     )
-    # Запускаем бота в режиме polling (для локального тестирования)
-    await dp.start_polling(bot, skip_updates=True, on_startup=lambda _: on_startup(bot))
+
+    # Инициализируем базу данных
+    await init_db()
+    await insert_test_foods()
+    logger.info("Бот запущен!")
+
+    # Запускаем цикл проверки напоминаний как отдельную задачу
+    asyncio.create_task(check_and_send_reminders(bot))
+    logger.info("Цикл проверки напоминаний (asyncio) запущен с интервалом 30 секунд.")
+
+    # Запускаем цикл очистки старых напоминаний как отдельную задачу
+    asyncio.create_task(clean_old_reminders_task())
+    logger.info("Цикл очистки старых напоминаний запущен с интервалом 1 день.")
+
+    # Запускаем бота в режиме polling
+    await dp.start_polling(bot, skip_updates=True)
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logger.error(f"Ошибка при запуске бота: {str(e)}")
