@@ -130,35 +130,24 @@ async def mark_reminder_sent(user_id, reminder_time):
 async def get_bju_from_local_db(product_name):
     async with aiosqlite.connect(DATABASE_FILE) as db:
         cursor = await db.execute(
-            "SELECT protein, fat, carbs, calories, weight FROM foods WHERE name LIKE ? LIMIT 1",
+            "SELECT name, protein, fat, carbs, calories, weight FROM foods WHERE name LIKE ? LIMIT 5",
             (f"%{product_name}%",),
         )
-        result = await cursor.fetchone()
-        if result:
-            return {
-                "b": result[0],
-                "j": result[1],
-                "u": result[2],
-                "kcal": result[3],
-                "weight": result[4],
-            }
+        results = await cursor.fetchall()
+        if results:
+            # Возвращаем список продуктов с их характеристиками
+            return [
+                {
+                    "name": result[0],
+                    "b": result[1],
+                    "j": result[2],
+                    "u": result[3],
+                    "kcal": result[4],
+                    "weight": result[5],
+                }
+                for result in results
+            ]
         return None
-
-
-async def insert_test_foods():
-    test_data = [
-        ("яблоко", 0.4, 0.4, 9.8, 47, 100.0),
-        ("банан", 1.5, 0.2, 21.8, 95, 100.0),
-        ("курица", 23.1, 1.9, 0, 110, 100.0),
-    ]
-    async with aiosqlite.connect(DATABASE_FILE) as db:
-        for data in test_data:
-            await db.execute(
-                "INSERT OR IGNORE INTO foods (name, protein, fat, carbs, calories, weight) VALUES (?, ?, ?, ?, ?, ?)",
-                data,
-            )
-        await db.commit()
-    print("Тестовые данные о продуктах добавлены.")
 
 
 async def save_log_to_db(log_level, message, user_id=None):
@@ -212,3 +201,16 @@ async def clean_old_reminders(days=7):
         deleted_count = cursor.rowcount
         await db.commit()
         return deleted_count
+
+
+def recalculate_bju(data, input_weight):
+    base_weight = data["weight"]
+    multiplier = input_weight / base_weight if base_weight > 0 else 1
+    return {
+        "name": data["name"],
+        "b": round(data["b"] * multiplier, 1),
+        "j": round(data["j"] * multiplier, 1),
+        "u": round(data["u"] * multiplier, 1),
+        "kcal": round(data["kcal"] * multiplier, 1),
+        "weight": input_weight,
+    }

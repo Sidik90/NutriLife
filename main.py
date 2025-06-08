@@ -1,8 +1,18 @@
 import asyncio
 from aiogram import Bot, Dispatcher
 from config.config import BOT_TOKEN
-from database.db import init_db, insert_test_foods
-from handlers import start, main_menu, diagnostics, quiz, reminder, bju_calc, contact, help, admin
+from database.db import init_db
+from handlers import (
+    start,
+    main_menu,
+    diagnostics,
+    quiz,
+    reminder,
+    bju_calc,
+    contact,
+    help,
+    admin,
+)
 from utils.logger import logger
 from utils.scheduler import check_and_send_reminders, clean_old_reminders_task
 
@@ -21,12 +31,11 @@ async def main():
         bju_calc.router,
         contact.router,
         help.router,
-        admin.router
+        admin.router,
     )
 
     # Инициализируем базу данных
     await init_db()
-    await insert_test_foods()
     logger.info("Бот запущен!")
 
     # Запускаем цикл проверки напоминаний как отдельную задачу
