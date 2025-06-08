@@ -24,7 +24,7 @@ var/
 *.egg
 
 # Файлы базы данных SQLite
-nutrilife.db
+../Parser/nutrilife.db
 
 # Папка с медиафайлами (видео, изображения)
 data/
