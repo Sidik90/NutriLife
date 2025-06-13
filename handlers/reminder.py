@@ -8,7 +8,7 @@ from database.db import save_reminder
 from utils.logger import logger
 from datetime import datetime
 
-from NutriLifeBot.database.db import get_all_reminders
+from database.db import get_all_reminders
 
 router = Router()
 
